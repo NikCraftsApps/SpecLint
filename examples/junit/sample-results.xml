@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="example" tests="2" failures="0">
+  <testcase classname="auth" name="TC-001 login_ok"/>
+  <testcase classname="auth" name="TC-002 login_fail"/>
+</testsuite>

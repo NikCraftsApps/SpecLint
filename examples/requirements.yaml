@@ -1,0 +1,11 @@
+project: Sample App
+version: 1.0.0
+requirements:
+  - id: REQ-001
+    title: Login requires valid credentials
+    risk: high
+    tests: [TC-001, TC-002]
+  - id: REQ-002
+    title: Password reset should be easy
+    risk: medium
+    tests: [TC-003]

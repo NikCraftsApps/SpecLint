@@ -1,0 +1,34 @@
+include:
+  - "examples/**/*.md"
+  - "examples/**/*.yaml"
+  - "examples/**/*.csv"
+exclude:
+  - "archive/**"
+id_formats:
+  requirement: "^REQ-[0-9]{3,}$"
+  test: "^TC-[0-9]{3,}$"
+rules:
+  UNIQUE_IDS: error
+  REQ_ID_FORMAT: error
+  TEST_ID_FORMAT: warning
+  REQUIRED_FIELDS:
+    severity: error
+    fields: ["id", "title", "risk"]
+  MISSING_TEST_LINKS: error
+  ORPHAN_TESTS: warning
+  SEQUENCE_GAPS:
+    severity: warning
+  RISK_COVERAGE_MIN:
+    severity: error
+    min_tests:
+      high: 2
+      medium: 1
+      low: 1
+  AMBIGUOUS_TERMS:
+    severity: warning
+    languages: ["en", "pl"]
+report:
+  formats: ["cli", "markdown", "json"]
+  output_dir: "build/speclint"
+junit:
+  paths: ["examples/junit/**/*.xml"]

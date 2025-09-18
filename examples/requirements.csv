@@ -1,0 +1,3 @@
+id,title,risk,tests,tags
+REQ-003,Session expires after 15 minutes of inactivity,low,TC-004|TC-005,security
+REQ-010,User-friendly onboarding,low,TC-006,ux

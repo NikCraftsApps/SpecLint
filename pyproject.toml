@@ -1,0 +1,25 @@
+[project]
+name = "speclint"
+version = "0.1.0"
+description = "Linter for specifications, requirements, risk coverage and test traceability"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Your Name" }]
+license = { text = "MIT" }
+dependencies = [
+  "typer>=0.12",
+  "pyyaml>=6.0",
+  "pydantic>=2.7",
+  "Jinja2>=3.1",
+  "lxml>=5.2",
+  "tabulate>=0.9"
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+speclint = "speclint.cli:main"
+
+[tool.ruff]
+line-length = 100
