@@ -8,6 +8,7 @@ from speclint.parsers.yaml_req import parse_yaml_requirements
 from speclint.parsers.csv_req import parse_csv_requirements
 from speclint.parsers.md_req import parse_md_requirements
 from speclint.parsers.junit_xml import collect_junit_test_ids
+from speclint.parsers.xlsx_req import parse_xlsx_requirements  # NEW
 from speclint.rules.engine import run_rules
 from speclint.reporters.emit import write_reports
 
@@ -25,12 +26,15 @@ def scan(config: str = typer.Option(None, "--config", "-c", help="Path to .specl
 
     # Parse supported inputs
     for p in files:
-        if p.suffix.lower() in (".yaml", ".yml"):
-            reqs.extend(parse_yaml_requirements(p))
-        elif p.suffix.lower() == ".csv":
-            reqs.extend(parse_csv_requirements(p))
-        elif p.suffix.lower() == ".md":
-            reqs.extend(parse_md_requirements(p))
+        suf = p.suffix.lower()
+        if suf in (".yaml", ".yml"):
+            reqs.extend(parse_yaml_requirements(p, cfg))
+        elif suf == ".csv":
+            reqs.extend(parse_csv_requirements(p, cfg))
+        elif suf == ".md":
+            reqs.extend(parse_md_requirements(p, cfg))
+        elif suf == ".xlsx":
+            reqs.extend(parse_xlsx_requirements(p, cfg))
 
     # Build TestCase list from requirement links
     test_map: dict[str, set[str]] = {}
@@ -58,4 +62,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

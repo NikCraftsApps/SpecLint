@@ -1,12 +1,22 @@
+# SpecLint configuration — flexible input mapping
+# CSV/XLSX: auto-detect header row and map columns by aliases (case-insensitive; punctuation ignored).
+# YAML: map object keys by aliases.
+# MD: parse using configurable regexes.
+
 include:
-  - "examples/**/*.md"
-  - "examples/**/*.yaml"
   - "examples/**/*.csv"
+  - "examples/**/*.xlsx"
+  - "examples/**/*.yaml"
+  - "examples/**/*.md"
+  - "requirements_example.xlsx"
+
 exclude:
   - "archive/**"
+
 id_formats:
   requirement: "^REQ-[0-9]{3,}$"
   test: "^TC-[0-9]{3,}$"
+
 rules:
   UNIQUE_IDS: error
   REQ_ID_FORMAT: error
@@ -20,15 +30,58 @@ rules:
     severity: warning
   RISK_COVERAGE_MIN:
     severity: error
-    min_tests:
-      high: 2
-      medium: 1
-      low: 1
+    min_tests: { high: 2, medium: 1, low: 1 }
   AMBIGUOUS_TERMS:
     severity: warning
     languages: ["en", "pl"]
+
 report:
   formats: ["cli", "markdown", "json"]
   output_dir: "build/speclint"
+
 junit:
-  paths: ["examples/junit/**/*.xml"]
+  paths: []   # add e.g. "examples/junit/**/*.xml" if you want JUnit presence checks
+
+# === INPUT SETTINGS (users can tweak everything below) ===
+inputs:
+  common:
+    # How to split multi-value fields:
+    tests_separator: "|"
+    tags_separator: "|"
+
+  csv:
+    # If header isn't on row 1, look through the first N rows to find it:
+    header_row_search_rows: 1
+    # Column aliases for mapping (normalize: lower + remove punctuation/space).
+    columns:
+      id:    ["id", "req id", "requirement id", "requirement"]
+      title: ["title", "name", "summary", "requirement title"]
+      risk:  ["risk", "severity", "priority"]
+      tests: ["tests", "test ids", "test cases", "test_cases"]
+      tags:  ["tags", "labels", "category"]
+
+  xlsx:
+    # Sheet can be index (0-based) or name, e.g. "Requirements"
+    sheet: 0
+    header_row_search_rows: 5
+    columns:
+      id:    ["id", "req id", "requirement id", "requirement"]
+      title: ["title", "name", "summary", "requirement title"]
+      risk:  ["risk", "severity", "priority"]
+      tests: ["tests", "test ids", "test cases", "test_cases"]
+      tags:  ["tags", "labels", "category"]
+
+  yaml:
+    # For YAML each requirement is an object; pick first present alias per field:
+    fields:
+      id:    ["id", "req", "requirement", "requirement_id"]
+      title: ["title", "name", "summary"]
+      risk:  ["risk", "severity", "priority"]
+      tests: ["tests", "test_ids", "testCases", "test_cases"]
+      tags:  ["tags", "labels", "category"]
+
+  md:
+    # Provide regex for header (must capture ID in group 1 and Title in group 2), risk and tests:
+    header_regex: "^##\\s+(REQ-[0-9]+)\\s+(.*)$"
+    risk_regex: "^risk:\\s*(\\w+)"
+    tests_regex: "^tests:\\s*(.*)$"
