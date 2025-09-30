@@ -1,20 +1,16 @@
 from __future__ import annotations
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
+from pathlib import Path
 import yaml
 
 # DEFAULT CONFIG
-# - inputs.common: global separators and normalizers
+# - inputs.common: global separators
 # - inputs.csv/xlsx: flexible header detection + alias-based column mapping
-# - inputs.yaml: flexible field alias mapping within each YAML requirement object
-# - inputs.md: configurable regexes for header/risk/tests lines
+# - inputs.yaml: field alias mapping
+# - inputs.md: configurable regexes
 DEFAULT_CONFIG: Dict[str, Any] = {
-    "include": [
-        "examples/**/*.md",
-        "examples/**/*.yaml",
-        "examples/**/*.csv",
-        # You can enable XLSX by adding patterns in your project config
-        # "examples/**/*.xlsx",
-    ],
+    # GENERIC patterns so fallback works in any folder (not only examples/)
+    "include": ["**/*.md", "**/*.yaml", "**/*.yml", "**/*.csv", "**/*.xlsx"],
     "exclude": ["archive/**"],
     "id_formats": {
         "requirement": r"^REQ-[0-9]{3,}$",
@@ -37,20 +33,14 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     },
     "report": {"formats": ["cli", "markdown", "json"], "output_dir": "build/speclint"},
     "nlp": {"language_priority": ["pl", "en"]},
-    "junit": {"paths": ["examples/junit/**/*.xml"]},
-    # NEW: unified, user-friendly input configuration
+    "junit": {"paths": []},
     "inputs": {
         "common": {
-            # How we split multi-value columns/lines. Users can change it.
             "tests_separator": "|",
             "tags_separator": "|",
         },
         "csv": {
-            # If header is not the first row, you can widen the search window.
-            # For CSV we usually expect row 1, but this allows flexibility.
             "header_row_search_rows": 1,
-            # Column aliases (case-insensitive; punctuation/whitespace ignored).
-            # A header cell is matched if its normalized text equals any alias.
             "columns": {
                 "id":    ["id", "req id", "requirement id", "requirement"],
                 "title": ["title", "name", "summary", "requirement title"],
@@ -60,7 +50,6 @@ DEFAULT_CONFIG: Dict[str, Any] = {
             },
         },
         "xlsx": {
-            # Choose a sheet by name or index (0-based). Default: first sheet.
             "sheet": 0,
             "header_row_search_rows": 5,
             "columns": {
@@ -72,7 +61,6 @@ DEFAULT_CONFIG: Dict[str, Any] = {
             },
         },
         "yaml": {
-            # For YAML each requirement is an object. We map keys by aliases.
             "fields": {
                 "id":    ["id", "req", "requirement", "requirement_id"],
                 "title": ["title", "name", "summary"],
@@ -82,8 +70,6 @@ DEFAULT_CONFIG: Dict[str, Any] = {
             }
         },
         "md": {
-            # Configurable regexes for Markdown format.
-            # Header must capture (id, title) in groups 1 and 2.
             "header_regex": r"^##\s+(REQ-[0-9]+)\s+(.*)$",
             "risk_regex": r"^risk:\s*(\w+)",
             "tests_regex": r"^tests:\s*(.*)$",
@@ -92,14 +78,13 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 }
 
 def load_config(path: str | None) -> Dict[str, Any]:
+    """Load a user config and deep-merge on top of DEFAULT_CONFIG."""
     if not path:
         return DEFAULT_CONFIG
     with open(path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
-    # shallow-merge with nested updates for known sections
     cfg = DEFAULT_CONFIG.copy()
     cfg.update(data)
-    # deep-merge sections to preserve defaults when user adds partial configs
     for key in ("id_formats", "rules", "report", "junit", "inputs"):
         if key in data and isinstance(DEFAULT_CONFIG.get(key), dict):
             merged = DEFAULT_CONFIG[key].copy()
@@ -113,3 +98,20 @@ def _deep_update(dst: Dict[str, Any], src: Dict[str, Any]) -> None:
             _deep_update(dst[k], v)
         else:
             dst[k] = v
+
+def resolve_config_for_path(root: Path, explicit_config: Path | None = None) -> Tuple[Dict[str, Any], str]:
+    """
+    Resolve config source in order:
+      1) explicit --config
+      2) <root>/.speclint.yml
+      3) DEFAULT_CONFIG (fallback)
+    Returns: (cfg, source_label)
+    """
+    if explicit_config:
+        with open(explicit_config, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        return load_config(str(explicit_config)), f"--config: {explicit_config}"
+    local = root / ".speclint.yml"
+    if local.exists():
+        return load_config(str(local)), str(local)
+    return DEFAULT_CONFIG, "default (built-in)"

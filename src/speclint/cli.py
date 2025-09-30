@@ -1,26 +1,53 @@
 from __future__ import annotations
+import sys
 import typer
 from pathlib import Path
-from speclint.core.config import load_config
+
+from speclint.core.config import load_config, resolve_config_for_path
 from speclint.core.discovery import iter_files
 from speclint.core.models import Model, Requirement, TestCase
 from speclint.parsers.yaml_req import parse_yaml_requirements
 from speclint.parsers.csv_req import parse_csv_requirements
 from speclint.parsers.md_req import parse_md_requirements
 from speclint.parsers.junit_xml import collect_junit_test_ids
-from speclint.parsers.xlsx_req import parse_xlsx_requirements  # NEW
+from speclint.parsers.xlsx_req import parse_xlsx_requirements
 from speclint.rules.engine import run_rules
 from speclint.reporters.emit import write_reports
 
 app = typer.Typer(help="SpecLint — Linter for specifications and QA traceability")
 
 @app.command()
-def scan(config: str = typer.Option(None, "--config", "-c", help="Path to .speclint.yml")):
-    cfg = load_config(config)
+def scan(
+    path: str = typer.Argument(".", help="Folder to scan (default: current directory)"),
+    config: str = typer.Option(None, "--config", "-c", help="Path to .speclint.yml"),
+    print_config: bool = typer.Option(False, "--print-config", help="Show effective config and exit"),
+):
+    """
+    Scan requirements/tests in PATH. If no --config and no PATH/.speclint.yml,
+    fallback to built-in defaults (auto-discover inputs).
+    """
+    root = Path(path).resolve()
+    cfg, cfg_source = resolve_config_for_path(root, Path(config) if config else None)
+
+    if print_config:
+        # print effective config and exit
+        import yaml as _yaml
+        _yaml.safe_dump(cfg, sys.stdout, sort_keys=False, allow_unicode=True)
+        raise typer.Exit(0)
+
     include = cfg.get("include", [])
     exclude = cfg.get("exclude", [])
 
-    files = iter_files(include, exclude)
+    files = iter_files(include, exclude, root=root)
+    typer.echo(f"[scan] root: {root}")
+    typer.echo(f"[scan] config: {cfg_source}")
+    typer.echo(f"[scan] discovered: {len(files)} files")
+
+    if not files:
+        typer.echo("[scan] No supported files found. "
+                   "Add *.xlsx/*.csv/*.yaml/*.md or adjust 'include' globs in config.")
+        raise typer.Exit(0)
+
     reqs: list[Requirement] = []
     tests: list[TestCase] = []
 
@@ -52,8 +79,12 @@ def scan(config: str = typer.Option(None, "--config", "-c", help="Path to .specl
     model = Model(requirements=reqs, tests=tests, junit_tests=junit_ids)
     findings, counts = run_rules(model, cfg)
 
-    write_reports(findings, counts, cfg.get("report", {}).get("formats", ["cli"]),
-                  cfg.get("report", {}).get("output_dir", "build/speclint"))
+    write_reports(
+        findings,
+        counts,
+        cfg.get("report", {}).get("formats", ["cli"]),
+        cfg.get("report", {}).get("output_dir", "build/speclint"),
+    )
 
     raise typer.Exit(code=1 if counts.get("error", 0) > 0 else 0)
 
